@@ -1,0 +1,20 @@
+## Glide与UIL框架源码，优缺点
+
+
+### Glide
+LruCache 中的sizeOf（K key,V value）指的是在LruCache传值的单位，比如
+
+```
+LruCache<Integer, String> idToCustomerName = new LruCache<>(100000) {
+    @Override
+    protected int sizeOf(Integer key, String value) {
+       return value.length();
+    }
+};
+```
+指的便是总长度不超过100000，即每个value占它的长度个单位，一共加起来小于100000
+默认返回的是1
+
+
+## 图片加载策略，官方建议
+http://blog.csdn.net/guolin_blog/article/details/9316683

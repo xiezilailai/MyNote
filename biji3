@@ -1,0 +1,117 @@
+## activity四种状态
+running/paused/stopped/killed
+
+栈顶    部分被覆盖，仍可见，上面有一个非全屏或者透明的activity   完全覆盖，不可见    被回收
+
+## activity生命周期
+
+onCreate（）第一个调用方法，setContentView，加载之类</br>
+onStart（）处于用户可见，用户不能交互</br>
+onResume（）可见，可交互</br>
+点home返回时：onPause（） onStop（）</br>
+onPause（） 可见，不可触摸</br>
+onStop（）已经不可见，</br>
+当再次回到原Activity时，onRestart（） onStart（） onResume（）
+
+onRestart（） 重新返回时回调</br>
+onStart（） 可见</br>
+onResume（）用户可以交互</br>
+退出Activity时 onPause（）  onStop（） onDestroy（）</br>
+onDestroy（）被销毁，可以释放资源
+
+
+## android进程优先级
+
+前台 正与用户交互的Activity或者前台Activity绑定的service</br>
+可见 可见但不能点击</br>
+服务 在后台</br>
+后台 按home键后进程变为后台</br>
+空   优先级最低，没有活跃的组件，出于缓存的目的保留，可以随时被kill</br>
+
+
+## android任务栈、启动模式
+standard 每启动一个Activity都会创建一个Activity实例，不会复用已有的Activity，
+消耗资源</br>
+singleTop 栈顶复用模式，如果是栈顶就不重建，否则还是会创建</br>
+singleTask 只要存在，不管在哪，都不重新创建，**把它上面都要清除出去**</br>
+singleinstance activity只有一个且独享整个栈</br>
+
+## scheme跳转协议
+
+app之间跳转、h5页面调到app、后台链接打开app
+
+
+
+## Fragment
+1.静态加载，写入xml</br>
+2.动态加载，创建FragmentManager、Transanction，commit。。。</br>
+
+## FragmentPagerAdapter与FragmentStatePagerAdapter区别
+前者页面较少的情况，后面页面较多的情况，后者切换时回收内存，前者只是把ui分离
+
+## Fragment声明周期（图）
+
+
+## Fragment通信
+
+Fragment中调用Activity  getActivity（）</br>
+Activity中调用Fragment  接口回调</br>
+Fragment调用Fragment  findFragmentById（）</br>
+
+## FragmentManager的add、remove、replace方法
+
+replace替换、add添加
+
+
+## Service
+Service是一个可以在后台执行长时间运行操作而没有用户界面的应用组件，可以与Activity交互，即使创建的Activity被
+销毁也可以依然存在，但执行在主线程，不能做耗时操作，只是执行在后台。Activity销毁之后无法获取无法获取子线程实例
+而有了service，Activity被销毁也没有任何关系，因为service会依然存在，另一个Activity与其绑定仍能获得binder实例进行操作
+
+Service创建之后，一旦bind了Activity，只有所有的关联的Activity全部解除关系才会被关闭（即使unbind也是）
+也就是说service只有在和所有Activity没有bind并且处于停止状态时才会被销毁
+Service比如播放音乐、天气等
+
+可以将Service设置成remote，会运行在一个新线程，但一般不使用，在于Activity bind时会因为不在一个线程而导致崩溃，必须使用AIDL进行ipc
+### 启动service方法
+1.startService（Intent intent），Activity销毁也不受影响</br>
+ 继承Service实现的方法</br>
+onBind（）、onCreate（）创建服务时调用、onStartCommand（）startService时调用、onDestroy（）
+onStartCommand（）返回int值的含义</br>
+2.bindService，允许与Activity进行交互，多个Activity可绑定一个service
+创建服务端，继承Service类，onBind回调返回实例，在onServiceConnected（）回调
+中接受binder
+
+## 广播
+
+http://blog.csdn.net/fkq_2016/article/details/57086465
+
+发送的是Intent，在一个app中不同进程中进行交互，或者在不同app间通信
+
+Normal broadcast</br> sendBroadcast函数发送
+system broadcast</br>
+local broadcast 使用localBroadcastManager 中的send函数发送和register函数注册 ，通过Handler发送消息实现的，所以更高效，更安全</br>
+
+静态注册：写在Manifest里面，进程被杀死也能收到广播，
+动态注册：用registerReceiver()注册，和Activity周期一样，记得在destroy里面销毁，否则会引起内存泄漏，
+
+广播通过action识别，发送广播时注明action，intent-filter（Manifest中）中有该action的广播会调用receive函数
+
+## WebView
+webview添加在LinearLayout等中，onDestroy中必须先从里面remove，再销毁
+
+jsbridge（混生）：JSBridge是一座用JavaScript搭建起来的桥，一端是web，一端是native。我们搭建这座桥的目的也很简单，让native可以调用web的js代码，让web可以 “调用” 原生的代码。
+
+webviewClient.onPageFinished有坑，建议用WebChromeClient.onProgressChanged
+
+WebView内部有Activity引用，开了新线程，导致泄漏，可以动态添加webview，传入Activity弱引用
+或者独立进程，用完直接干掉
+
+## Binder
+binder是一种通信机制（跨进程），对于server进程binder对象指的是binder本地对象，对于client来说，binder指的是binder代理对象
+
+![](https://github.com/xiezilailai/myPictures/blob/master/TIM%E6%88%AA%E5%9B%BE20180110181632.jpg?raw=true)
+
+## AIDL
+
+AIDL是Binder的一种实现，关键点同上图，在服务端会调用onTransact（），在客户端会调用return new com.zhy.calc.aidl.ICalcAIDL.Stub.Proxy(obj);  里面又调用了transact（）方法

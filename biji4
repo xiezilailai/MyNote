@@ -1,0 +1,2 @@
+## handler
+通过发送和处理Message和Runnable对象来关联相应线程的MessageQueue

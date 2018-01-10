@@ -1,0 +1,169 @@
+# OnStart 与 onResume区别
+先执行onStart，在执行onResume，onStart时当前activity可见，onResume时用户可以与activity进行交互
+# activity view window区别
+每一个activity都有一个window，叫做phoneWindow,phoneWindow里面有一个decorView，decorView分为titleView与contentView
+
+# 按钮事件分发
+郭霖博客：http://blog.csdn.net/guolin_blog/article/details/9097463
+
+普通情况：给一个button添加onClick、OnTouck事件监听，onTouch实现的内容要多一些，包括手指的拿起放下等等
+
+同时监听时，先是onTouch再是onClick，onTouch至少按下抬起这两次
+
+onTouch有返回值，如果返回True，那么后面的onClick便不会再执行
+
+在点击button之后，会首先执行dispatchTouchEvent（），但这个函数button以及父类textView都没有，只能从
+view中找到
+
+
+```
+public boolean dispatchTouchEvent(MotionEvent event) {
+    if (mOnTouchListener != null && (mViewFlags & ENABLED_MASK) == ENABLED &&
+            mOnTouchListener.onTouch(this, event)) {
+        return true;
+    }
+    return onTouchEvent(event);
+}
+```
+
+onClick在onTouchEvent中，这和前面提到的顺序一致
+
+在dispatchEvent中只有前一个action返回true，后面才会接着执行
+
+#### viewGroup事件分发
+
+自定义一个布局MyLayout继承LinearLayout，里面添加两个button，都设置onClick监听，给MyLayout设置onTouch监听，点击button1和2会显示onClick，而onTouch没有反应，点击其他地方，会打印出onTouch
+
+首先，touch事件的传递先传到viewGroup，再传到view
+
+先执行viewGroup的dispatchEvent事件，在里面如果
+```
+if (disallowIntercept || !onInterceptTouchEvent(ev))
+```
+（disallowIntercept默认为false，可通过```requestDisallowIntercept（）```关闭,而onInterceptTouchEvent（）默认返回false，也可以覆盖重写）
+
+
+成立，那么就开始执行子view的dispatchEvent事件，如果子view可点击那么一定返回true，则不会执行viewgroup的touch事件，如果不是子view，那么会
+接着执行super.dispatchEvent()，也就是view的dispatchEvent，所以onTouch会接着执行
+
+# view事件分发与绘制过程
+继承view之后，在其onDraw（）方法内部，如果写在super.onDraw()前面那么，会先于父view绘制，反之
+
+dispatchDraw（）负责处理子view的绘制，写在super.dispatchDraw（）后面，那么子view绘制的内容就会被我们所写的代码所覆盖，写在上面和写在super.onDraw()后面一样
+
+绘制的过程：
+- 背景（drawBackground()无法重写）
+- 主体（onDraw()）
+- 子 View（dispatchDraw()）
+- 滑动边缘渐变和滑动条
+- 前景
+
+后两个的执行函数是onDrawForeGround（）可以重写，写在super.onDrawForeGround（）下面绘制内容会覆盖滑动渐变、滑动条以及前景，比如绘制new标签
+
+
+<img src="https://ws2.sinaimg.cn/large/006tNc79ly1fihyhundspj30g008ggma.jpg" width = "400" height = "200" alt="图片名称" align=center />
+
+写在上面和写在super.dispatchDraw()下面一样
+
+上述的方法都在```draw()```中执行，将代码写在super.draw()下面和重写super.onDrawForeGround()下面一样，写在super.draw()上面可以被所有绘制内容所覆盖，包括
+背景，可以用来给editText加背景
+
+<img src="https://ws2.sinaimg.cn/large/006tKfTcly1fii53vch7mj30ag02l3yk.jpg" width = "200" height = "50" alt="图片名称" align=center />
+
+# handler机制
+
+郭霖博客  http://blog.csdn.net/guolin_blog/article/details/9991569
+
+注意：在子线程中创建handler要记得Looper.prepare();
+
+Handler通过TreadLocal保存Looper，每个thread的set、get方法都是针对本Thread
+各种sendMessage()函数最终会调用sendMessageAtTime（），里面调用了queue.enQueue(msg,uptimeMills)
+在这个函数里面把msg当做链表的一个节点(按upTimeMills排列)，每加入一个msg，将其添加到链表的合适位置
+
+```
+Message prev = null;
+          while (p != null && p.when <= when) {
+              prev = p;
+              p = p.next;
+          }
+          msg.next = prev.next;
+          prev.next = msg;
+          this.notify();
+```
+
+Looper.loop()里面是一个循环，将消息队列中的消息一个个取出
+
+```
+public static final void loop() {
+    Looper me = myLooper();
+    MessageQueue queue = me.mQueue;
+    while (true) {
+        Message msg = queue.next(); // might block
+        if (msg != null) {
+            if (msg.target == null) {
+                return;
+            }
+            if (me.mLogging!= null) me.mLogging.println(
+                    ">>>>> Dispatching to " + msg.target + " "
+                    + msg.callback + ": " + msg.what
+                    );
+            msg.target.dispatchMessage(msg);
+            if (me.mLogging!= null) me.mLogging.println(
+                    "<<<<< Finished to    " + msg.target + " "
+                    + msg.callback);
+            msg.recycle();
+        }
+    }
+}
+```
+
+**新建进程的标准用法**
+```
+class LooperThread extends Thread {
+      public Handler mHandler;
+
+      public void run() {
+          Looper.prepare();
+
+          mHandler = new Handler() {
+              public void handleMessage(Message msg) {
+                  // process incoming messages here
+              }
+          };
+
+          Looper.loop();
+      }
+  }
+```
+**其他用法**
+
+post(Runnable r)
+
+view中找到中的post就是直接调用了这个函数，还有runOnUIThread(Runnable r)也是
+```
+private Handler handler;
+
+  @Override
+  protected void onCreate(Bundle savedInstanceState) {
+      super.onCreate(savedInstanceState);
+      setContentView(R.layout.activity_main);
+      handler = new Handler();
+      new Thread(new Runnable() {
+          @Override
+          public void run() {
+              handler.post(new Runnable() {
+                  @Override
+                  public void run() {
+                      // 在这里进行UI操作
+                  }
+              });
+          }
+      }).start();
+  }
+```
+
+## AsyncTask
+
+封装了线程池和Handler的异步框架，执行异步任务，方便在ui线程和子线程中切换，一般做一些耗时短的操作
+
+不会随Activity销毁而销毁，可以调用cancel，建议使用串行（现阶段默认串行，可以用executeOnExecutor(exec)并行）
