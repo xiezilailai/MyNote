@@ -1,2 +1,132 @@
-## handler
-通过发送和处理Message和Runnable对象来关联相应线程的MessageQueue
+android studio 每个project包含若干module，每个module就是文件夹带手机符号，能够跑起来的
+
+一个project里有多个module也正是android组件开发
+
+android编译过程
+
+![ff](https://github.com/xiezilailai/myPictures/blob/master/TIM%E6%88%AA%E5%9B%BE20180112202901.jpg?raw=true)
+
+apk zipalign 优化
+Jenkins 持续集成构建
+
+git fork复制到自己的远程操作
+
+setting.gradle ：一个project包含一个，里面是project中所有的module模块，include ':app',':new'
+多模块开发一定要这个文件
+
+project下build.gradle，说明gradle代码库版本
+
+app内部build.gradle 可覆盖上面的gradle文件
+
+ProGuard 混淆，核心类EntryPoint
+
+
+## OKHttp
+
+先创建OKHttpClient和Request，然后client.newCall(request)
+如果同步则执行execute()返回 Response
+异步则执行enqueue（callback）
+
+Request request=new Request.Builder().url(...).build();
+这是典型的build模式，可以将复杂的对象的创建与表示相分离
+
+核心：Interceptor拦截器
+
+
+## Retrofit
+
+封装了OKHttp，动态代理模式
+
+## Volley
+
+打开两个线程，分别是缓存和网络
+
+
+## ButterKnife
+
+通过java注解机制，性能比反射机制好，不能将变量设为private或static，会使其变为反射
+
+扫描注解-》生成ViewBinder类-》调用bind方法加载ViewBinder类
+
+
+
+
+
+## ANR
+
+application not responding，主线程做了耗时操作，响应是有Activity Manager和WindowManager系统服务监视的
+
+## OOM
+
+ out of Memory(Dalvik虚拟机)当前占用内存加上申请的内存大于dalvik虚拟机分配的
+
+ 内存抖动：短时间产生大量对象，短时间又回收（GC）
+
+ 内存泄漏：已经没有用的对象引用GC roots
+
+## Bitmap
+
+recycle()
+LRUCache
+insampleSize
+缩略图
+三级缓存
+
+用gone不用invisible
+
+尽量用weight
+
+item嵌套复杂，尽量自定义view
+
+## 内存
+
+后台进程、服务进程区别
+避免使用枚举变量，消耗内存多
+尽量少使用ioc框架
+内存泄漏分析工具 LeakCanary
+
+## 冷启动、热启动
+
+启动前系统没有该应用的任何进程信息，会走Application类，冷启动计算时间：从应用启动开始计算，到完成视图的第一次绘制
+
+zygote进程fork一个新进程
+
+优化：不要让Application参与业务的操作以及耗时操作，不要在Application中以静态变量的方式保存数据
+
+
+## 其他优化
+
+不要用静态变量保存数据，不安全，因为有时候进程会被杀死（看起来应用却并没有重新启动）
+
+Sharepreference不能跨进程同步
+
+序列化：将对象状态信息转化为可以存储或传输的形式的过程
+
+Serializable产生大量临时变量
+Parceble使用内存时性能好，java特有，不能使用在将数据存储在磁盘上的情况
+
+ui卡顿工具strictmode严格模式
+
+## 插件化
+
+类加载机制
+
+DexclassLoader 加载未安装的jar/apk/dex
+PathClassLoader 加载系统中已经安装过的apk
+
+## 热更新
+
+Native：
+
+Dexposed hook函数、动态加载技术、反射
+
+AndFix 性能更好，生成补丁包
+
+
+</br>
+Java：
+
+Nuwa classLoader，dex包
+
+
+原理：ClassLoader扫描dexElements，只要新的类放在前面，就不会加载后面那个错的

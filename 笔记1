@@ -43,11 +43,30 @@ if (disallowIntercept || !onInterceptTouchEvent(ev))
 （disallowIntercept默认为false，可通过```requestDisallowIntercept（）```关闭,而onInterceptTouchEvent（）默认返回false，也可以覆盖重写）
 
 
-成立，那么就开始执行子view的dispatchEvent事件，如果子view可点击那么一定返回true，则不会执行viewgroup的touch事件，如果不是子view，那么会
+成立，那么就开始执行子view的dispatchEvent事件，如果子view可点击那么一定返回true，则不会执行viewgroup的touch事件，如果不可点击，那么会
 接着执行super.dispatchEvent()，也就是view的dispatchEvent，所以onTouch会接着执行
 
 # view事件分发与绘制过程
+
+measure->layout->draw
+
+对于子view就是一个递归过程
+## measure
+
+measure过程中系统会将ViewGroup.LayoutParams根据父容器的规则转换为MeasureSpec，在measure中便可以使用这个参数
+
+**ViewGroup.LayoutParams**:match_parent...
+**MeasureSpec**:前两位表示测量模式，后三十位表示该模式下的测量大小：exact、at_most、不限制
+
+measure() 最终还是会调用onMeasure（）
+onMeasure()我们自定义时需要复写的，最终会调用setMeasureDimension()
 继承view之后，在其onDraw（）方法内部，如果写在super.onDraw()前面那么，会先于父view绘制，反之
+
+## layout
+
+在viewGroup中onLayout是一个虚函数，
+
+
 
 dispatchDraw（）负责处理子view的绘制，写在super.dispatchDraw（）后面，那么子view绘制的内容就会被我们所写的代码所覆盖，写在上面和写在super.onDraw()后面一样
 
@@ -164,6 +183,43 @@ private Handler handler;
 
 ## AsyncTask
 
+http://blog.csdn.net/guolin_blog/article/details/11711405
+
 封装了线程池和Handler的异步框架，执行异步任务，方便在ui线程和子线程中切换，一般做一些耗时短的操作
 
-不会随Activity销毁而销毁，可以调用cancel，建议使用串行（现阶段默认串行，可以用executeOnExecutor(exec)并行）
+同handler一样，容易产生内存泄漏与，不会随Activity销毁而销毁，可以调用cancel，建议使用串行（现阶段默认串行，可以用executeOnExecutor(exec)并行）
+
+## HandlerThread
+
+handler+thread+looper，继承了Thread，可以进行looper循环，不能同时进行多任务的处理，需要等待，处理效率低。
+
+与线程池注重并发不同，handlerThread是一个串行队列，只有一个线程，不适合网络io操作
+
+下面是其典型用法，将handler传入子线程looper，那么这个handleMessage中执行的任务就在子线程中执行，降低主线程压力
+```
+myHandlerThread = new HandlerThread( "handler-thread") ;
+     //开启一个线程
+     myHandlerThread.start();
+     //在这个线程中创建一个handler对象
+     handler = new Handler( myHandlerThread.getLooper() ){
+         @Override
+         public void handleMessage(Message msg) {
+             super.handleMessage(msg);
+             //这个方法是运行在 handler-thread 线程中的 ，可以执行耗时操作
+             Log.d( "handler " , "消息： " + msg.what + "  线程： " + Thread.currentThread().getName()  ) ;
+
+         }
+
+     };
+```
+
+## IntentService
+
+http://blog.csdn.net/lmj623565791/article/details/47143563
+
+继承自Service，比Service优先级高，可以做耗时操作，不需要手动停止，每次只执行一个工作线程
+
+封装了HandlerThread，其实就是一个封装了多线程的Service，不需要再另外开线程
+
+
+## ListView RecycleBin机制（来源于其父类AbsListView）
